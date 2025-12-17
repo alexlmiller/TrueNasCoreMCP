@@ -65,9 +65,16 @@ class TrueNASMCPServer:
         Args:
             name: Server name for MCP
         """
+        import os
+
         self.name = name
         self.settings = get_settings()
-        self.mcp = FastMCP(name)
+
+        # Get HTTP server settings from environment (for HTTP transport mode)
+        mcp_host = os.environ.get("FASTMCP_HOST", "127.0.0.1")
+        mcp_port = int(os.environ.get("FASTMCP_PORT", "8000"))
+
+        self.mcp = FastMCP(name, host=mcp_host, port=mcp_port)
         self.tools: List[BaseTool] = []
         self.variant: TrueNASVariant = TrueNASVariant.UNKNOWN
         self._setup_logging()
@@ -175,14 +182,18 @@ class TrueNASMCPServer:
     
     def run(self):
         """Run the MCP server"""
-        logger.info(f"Starting {self.name}...")
-        
+        import os
+
+        # Get transport from environment (default: stdio for backward compatibility)
+        transport = os.environ.get("MCP_TRANSPORT", "stdio")
+        logger.info(f"Starting {self.name} with transport: {transport}...")
+
         try:
             # Run initialization
             asyncio.run(self.initialize())
-            
-            # Run the MCP server
-            self.mcp.run()
+
+            # Run the MCP server with configured transport
+            self.mcp.run(transport=transport)
             
         except KeyboardInterrupt:
             logger.info(f"\n{self.name} shutting down...")
